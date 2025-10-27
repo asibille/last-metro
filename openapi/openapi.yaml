@@ -1,0 +1,120 @@
+openapi: 3.0.0
+info:
+  title: Last Metro API
+  version: 1.0.0
+  description: API pour savoir si vous pouvez attraper le dernier métro à Paris
+  contact:
+    name: Votre nom
+    email: votre.email@efrei.net
+
+servers:
+  - url: http://localhost:3000
+    description: Serveur local
+
+paths:
+  /health:
+    get:
+      summary: Health check de l'API
+      description: Vérifie que l'API et la base de données fonctionnent
+      tags:
+        - Monitoring
+      responses:
+        '200':
+          description: Service opérationnel
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  service:
+                    type: string
+                    example: lastmetro-api
+                  database:
+                    type: string
+                    example: connected
+                  timestamp:
+                    type: string
+                    format: date-time
+        '503':
+          description: Service indisponible
+
+  /config:
+    get:
+      summary: Lire la configuration
+      description: Retourne toutes les clés de config stockées en base
+      tags:
+        - Configuration
+      responses:
+        '200':
+          description: Configuration récupérée
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                    example: 3
+                  data:
+                    type: array
+                    items:
+                      type: object
+
+  /next-metro:
+    get:
+      summary: Calculer le prochain métro
+      description: Retourne l'heure du prochain métro pour une station donnée
+      tags:
+        - Métro
+      parameters:
+        - name: station
+          in: query
+          required: true
+          description: Nom de la station de métro
+          schema:
+            type: string
+            example: Chatelet
+      responses:
+        '200':
+          description: Prochain métro calculé
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  station:
+                    type: string
+                    example: Chatelet
+                  line:
+                    type: string
+                    example: M1
+                  nextArrival:
+                    type: string
+                    example: "23:45"
+                  headwayMin:
+                    type: integer
+                    example: 5
+                  source:
+                    type: string
+                    example: database
+        '400':
+          description: Paramètre manquant
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: missing station parameter
+
+tags:
+  - name: Monitoring
+    description: Endpoints de surveillance
+  - name: Configuration
+    description: Gestion de la configuration
+  - name: Métro
+    description: Informations métro
