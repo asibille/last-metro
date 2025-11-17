@@ -2,8 +2,8 @@ name: CI/CD - LastMetro API
 
 on:
   push:
-    branches: [ "main", "develop" ]
-  workflow_dispatch:
+    branches: ["*"]   # déclenche sur toutes les branches
+  workflow_dispatch:   # permet déclenchement manuel
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}:${{ github.sha }}
@@ -12,7 +12,7 @@ env:
 jobs:
 
   # ==========================================
-  # STAGE 1 : BUILD
+  # BUILD DOCKER IMAGE
   # ==========================================
   build-image:
     runs-on: ubuntu-latest
@@ -38,10 +38,9 @@ jobs:
         run: |
           docker push $IMAGE_NAME
           docker push $IMAGE_LATEST
-          echo "Docker image pushed"
 
   # ==========================================
-  # STAGE 2 : UNIT TESTS
+  # UNIT TESTS
   # ==========================================
   unit-tests:
     runs-on: ubuntu-latest
@@ -66,7 +65,7 @@ jobs:
           path: coverage/
 
   # ==========================================
-  # STAGE 3 : INTEGRATION TESTS
+  # INTEGRATION TESTS
   # ==========================================
   integration-tests:
     runs-on: ubuntu-latest
@@ -99,7 +98,7 @@ jobs:
           docker-compose -f docker-compose.test.yml down
 
   # ==========================================
-  # STAGE 4 : SECURITY SCAN (Trivy)
+  # SECURITY SCAN
   # ==========================================
   trivy-scan:
     runs-on: ubuntu-latest
@@ -115,7 +114,7 @@ jobs:
           exit-code: 1
 
   # ==========================================
-  # STAGE 5 : DEPLOY STAGING
+  # DEPLOY STAGING
   # ==========================================
   deploy-staging:
     runs-on: ubuntu-latest
@@ -128,7 +127,7 @@ jobs:
           echo "Configure your real deployment here."
 
   # ==========================================
-  # STAGE 6 : DEPLOY PRODUCTION
+  # DEPLOY PRODUCTION
   # ==========================================
   deploy-production:
     runs-on: ubuntu-latest
