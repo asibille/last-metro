@@ -1,5 +1,10 @@
 const request = require('supertest');
-const { app, pool } = require('./server'); // on importe app et pool
+const { app, pool } = require('./server');
+
+beforeAll(async () => {
+  // Nettoyer la table avant les tests
+  await pool.query('DELETE FROM metro_lines');
+});
 
 describe('GET /metro-lines', () => {
   test('retourne la liste des lignes', async () => {
@@ -15,8 +20,6 @@ describe('GET /metro-lines', () => {
       expect(line).toHaveProperty('id');
       expect(line).toHaveProperty('name');
       expect(line).toHaveProperty('color');
-    } else {
-      expect(response.body.length).toBe(0); // si pas de ligne
     }
   });
 });
@@ -24,50 +27,37 @@ describe('GET /metro-lines', () => {
 describe('POST /metro-lines', () => {
   test('crée une nouvelle ligne', async () => {
     const newLine = { name: 'Ligne Test', color: 'Bleu' };
-
-    const response = await request(app)
-      .post('/metro-lines')
-      .send(newLine);
-
-    expect([201, 404]).toContain(response.status); 
-    // 201 si tout ok, 404 si la route n'existe pas
+    const response = await request(app).post('/metro-lines').send(newLine);
+    expect(response.status).toBe(201);
+    expect(response.body.name).toBe('Ligne Test');
   });
 
   test('rejette une ligne sans nom', async () => {
-    const response = await request(app)
-      .post('/metro-lines')
-      .send({ color: 'Rouge' });
-
-    expect([400, 404]).toContain(response.status); 
+    const response = await request(app).post('/metro-lines').send({ color: 'Rouge' });
+    expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty('error');
   });
 });
 
 describe('Flow complet CREATE → GET → DELETE', () => {
   test('cycle de vie d\'une ligne', async () => {
-    // 1. Créer
-    const createResponse = await request(app)
-      .post('/metro-lines')
-      .send({ name: 'Ligne Flow', color: 'Vert' });
-
-    if (createResponse.status !== 201) return;
-
+    const createResponse = await request(app).post('/metro-lines').send({ name: 'Ligne Flow', color: 'Vert' });
+    expect(createResponse.status).toBe(201);
     const lineId = createResponse.body.id;
 
-    // 2. Lire
     const getResponse = await request(app).get(`/metro-lines/${lineId}`);
-    expect([200, 404]).toContain(getResponse.status);
+    expect(getResponse.status).toBe(200);
+    expect(getResponse.body.name).toBe('Ligne Flow');
 
-    // 3. Supprimer
     const deleteResponse = await request(app).delete(`/metro-lines/${lineId}`);
-    expect([204, 404]).toContain(deleteResponse.status);
+    expect(deleteResponse.status).toBe(204);
 
-    // 4. Vérifier suppression
     const getAfterDelete = await request(app).get(`/metro-lines/${lineId}`);
-    expect([404, 200]).toContain(getAfterDelete.status);
+    expect(getAfterDelete.status).toBe(404);
   });
 });
 
-// Cleanup après les tests
+// Cleanup
 afterAll(async () => {
   await pool.end();
 });

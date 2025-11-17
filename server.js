@@ -3,7 +3,7 @@ const { Pool } = require('pg');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configuration du pool PostgreSQL
+// Configuration PostgreSQL
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT || 5432,
@@ -14,46 +14,37 @@ const pool = new Pool({
   min: 2,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
-  allowExitOnIdle: false,
 });
 
-// Test de connexion au démarrage
-pool.query('SELECT NOW()', (err, res) => {
-  if (err) {
-    console.error('❌ Erreur de connexion à PostgreSQL:', err);
-  } else {
-    console.log('✅ Connecté à PostgreSQL à', res.rows[0].now);
-  }
-});
-
+// Middleware JSON
 app.use(express.json());
 
-// Logger
+// Logger simple
 app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
-    const duration = Date.now() - start;
-    console.log(`${req.method} ${req.path} -> ${res.statusCode} (${duration}ms)`);
+    console.log(`${req.method} ${req.path} -> ${res.statusCode} (${Date.now() - start}ms)`);
   });
   next();
 });
 
-// --------------------- ROUTES ---------------------
+// ------------------- ROUTES -------------------
 
+// GET /metro-lines
 app.get('/metro-lines', async (req, res) => {
   const client = await pool.connect();
   try {
     const result = await client.query('SELECT * FROM metro_lines');
     res.status(200).json(result.rows);
   } catch (err) {
-    console.error('Erreur query:', err);
-    res.status(500).json({ error: 'database error' });
+    console.error('Erreur GET /metro-lines:', err);
+    res.status(500).json({ error: err.message });
   } finally {
     client.release();
   }
 });
 
-// POST /metro-lines pour créer une nouvelle ligne
+// POST /metro-lines
 app.post('/metro-lines', async (req, res) => {
   const { name, color } = req.body;
   if (!name) return res.status(400).json({ error: 'name is required' });
@@ -62,10 +53,11 @@ app.post('/metro-lines', async (req, res) => {
   try {
     const result = await client.query(
       'INSERT INTO metro_lines (name, color) VALUES ($1, $2) RETURNING *',
-      [name, color]
+      [name, color || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
+    console.error('Erreur POST /metro-lines:', err);
     res.status(500).json({ error: err.message });
   } finally {
     client.release();
@@ -100,20 +92,15 @@ app.delete('/metro-lines/:id', async (req, res) => {
   }
 });
 
-// --------------------- AUTRES ROUTES ---------------------
-// Transfer, health, config, next-metro, pool-status etc. ici
-// (comme dans ton code précédent)
-
 // 404
 app.use((req, res) => res.status(404).json({ error: 'not found' }));
 
-// --------------------- LANCEMENT DU SERVEUR ---------------------
-// On ne démarre le serveur que si on n'est pas en test
+// Serveur uniquement si pas en test
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`🚇 Last Metro API sur http://localhost:${PORT}`);
   });
 }
 
-// --------------------- EXPORTS ---------------------
+// Export app + pool pour tests
 module.exports = { app, pool };
