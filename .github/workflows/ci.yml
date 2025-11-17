@@ -107,24 +107,23 @@ jobs:
           format: table
           exit-code: 1
 
-  # ==========================================
-  # STAGE 5 : DEPLOYMENT (simulé)
-  # ==========================================
-  deploy-staging:
-    runs-on: ubuntu-latest
-    needs: [unit-tests, integration-tests, trivy-scan]
-    if: github.ref == 'refs/heads/develop'
-    steps:
-      - run: |
-          echo "🚀 Deploying to staging with image $IMAGE_NAME"
-          echo "Configure your real deployment here."
+# ==========================================
+# STAGE 5 : DEPLOYMENT (simulé)
+# ==========================================
+deploy-staging:
+  runs-on: ubuntu-latest
+  needs: [unit-tests, integration-tests, trivy-scan]
+  if: github.ref == 'refs/heads/develop'
+  steps:
+    - run: |
+        echo "🚀 Deploying to staging with image $IMAGE_NAME"
+        echo "Configure your real deployment here."
 
-  deploy-production:
-    runs-on: ubuntu-latest
-    needs: [unit-tests, integration-tests, trivy-scan]
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - run: |
-          echo "🚀 Deploying to production with image $IMAGE_NAME"
-          echo "Configure your real deployment here."
-git commit -m "Ajout du workflow CI/CD complet"
+deploy-production:
+  runs-on: ubuntu-latest
+  needs: [unit-tests, integration-tests, trivy-scan]
+  if: github.ref == 'refs/heads/main'
+  steps:
+    - run: |
+        echo "🚀 Deploying to production with image $IMAGE_NAME"
+        echo "Configure your real deployment here."
