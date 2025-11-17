@@ -1,0 +1,164 @@
+name: CI/CD - LastMetro API
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}:${{ github.sha }}
+  IMAGE_LATEST: ghcr.io/${{ github.repository }}:latest
+
+jobs:
+
+  # ==========================================
+  # STAGE 1 : BUILD
+  # ==========================================
+  build-image:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write   # nécessaire pour push vers GHCR
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker image
+        run: |
+          docker build -t $IMAGE_NAME -t $IMAGE_LATEST .
+          echo "Image built: $IMAGE_NAME"
+
+      - name: Push Docker image
+        run: |
+          docker push $IMAGE_NAME
+          docker push $IMAGE_LATEST
+          echo "Docker image pushed"
+
+  # ==========================================
+  # STAGE 2 : TEST – UNIT TESTS
+  # ==========================================
+  unit-tests:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    needs: build-image
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+
+  # ==========================================
+  # STAGE 2 : TEST – INTEGRATION TESTS
+  # ==========================================
+  integration-tests:
+    name: Run Integration Tests
+    runs-on: ubuntu-latest
+    needs: build-image
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: dernier_metro_test
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U app"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DB_HOST: localhost
+      POSTGRES_DB: dernier_metro_test
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Docker Compose
+        run: sudo apt-get install docker-compose -y
+
+      - name: Run integration tests
+        run: |
+          docker-compose -f docker-compose.test.yml up -d
+          sleep 10
+          docker-compose -f docker-compose.test.yml exec -T api npm run test:integration
+          docker-compose -f docker-compose.test.yml down
+
+  # ==========================================
+  # STAGE 3 : SECURITY (Trivy)
+  # ==========================================
+  trivy-scan:
+    name: Trivy Security Scan
+    runs-on: ubuntu-latest
+    needs: build-image
+
+    steps:
+      - name: Install Trivy
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          scan-type: "image"
+          severity: "HIGH,CRITICAL"
+          image-ref: ${{ env.IMAGE_NAME }}
+          format: "table"
+          exit-code: 1   # échoue si vulnérabilités critiques
+
+  # ==========================================
+  # STAGE 4 : DEPLOY (staging)
+  # ==========================================
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, trivy-scan]
+
+    if: github.ref == 'refs/heads/develop'
+
+    steps:
+      - name: Simulate deployment
+        run: |
+          echo "Deploying to staging with image $IMAGE_NAME"
+          echo "Configure your real deployment here."
+
+  # ==========================================
+  # STAGE 4 : DEPLOY (production)
+  # ==========================================
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, trivy-scan]
+
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Simulate deployment
+        run: |
+          echo "Deploying to production with image $IMAGE_NAME"
+          echo "Configure your real deployment here."
