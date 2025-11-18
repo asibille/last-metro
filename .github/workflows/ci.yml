@@ -107,10 +107,10 @@ jobs:
 
       - name: Run integration tests
         run: |
-          docker-compose -f docker-compose.test.yml up -d
+          docker-compose -f docker-compose.yml up -d
           sleep 10
-          docker-compose -f docker-compose.test.yml exec -T api npm run test:integration
-          docker-compose -f docker-compose.test.yml down
+          docker-compose -f docker-compose.yml exec -T api npm run test:integration
+          docker-compose -f docker-compose.yml down
 
   # ==========================================
   # STAGE 4 : SECURITY (Trivy)
