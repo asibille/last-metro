@@ -17,6 +17,7 @@ services:
       retries: 10
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./db/02_metro_lines.sql:/docker-entrypoint-initdb.d/02_metro_lines.sql:ro
 
   api:
     build:
