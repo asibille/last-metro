@@ -51,7 +51,7 @@ jobs:
         image: postgres:16-alpine
         ports: ["5432:5432"]
         env:
-          POSTGRES_DB: postgres
+          POSTGRES_DB: postgres        # Base par défaut pour créer d'autres bases
           POSTGRES_USER: app
           POSTGRES_PASSWORD: app
         options: >-
@@ -59,6 +59,7 @@ jobs:
           --health-interval=5s
           --health-timeout=5s
           --health-retries=10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -84,7 +85,7 @@ jobs:
           # Créer la base de test
           psql -h localhost -U app -d postgres -c "CREATE DATABASE dernier_metro_test;"
 
-          # Créer les tables et insérer les données par défaut
+          # Créer les tables et insérer données par défaut
           psql -h localhost -U app -d dernier_metro_test <<'EOSQL'
             CREATE TABLE IF NOT EXISTS metro_lines (
               id SERIAL PRIMARY KEY,
@@ -129,7 +130,7 @@ jobs:
           path: coverage/
 
   # ==========================================
-  # STAGE 3 : INTEGRATION TESTS (inchangé)
+  # STAGE 3 : INTEGRATION TESTS
   # ==========================================
   integration-tests:
     runs-on: ubuntu-latest
@@ -158,20 +159,24 @@ jobs:
         run: docker-compose -f docker-compose.ci.yml down
 
   # ==========================================
-  # STAGE 4 : SECURITY (Trivy)
+  # STAGE 4 : SECURITY SCAN (Trivy)
   # ==========================================
   trivy-scan:
     runs-on: ubuntu-latest
     needs: build-image
     steps:
-      - name: Install Trivy
-        uses: aquasecurity/trivy-action@0.20.0
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy scan
+        uses: docker://aquasec/trivy:latest
         with:
-          scan-type: image
-          severity: HIGH,CRITICAL
-          image-ref: ${{ env.IMAGE_NAME }}
-          format: table
-          exit-code: 1
+          entrypoint: [""]
+          args: image \
+                --severity HIGH,CRITICAL \
+                --exit-code 1 \
+                --format table \
+                ${{ env.IMAGE_NAME }}
 
   # ==========================================
   # STAGE 5 : DEPLOY STAGING
