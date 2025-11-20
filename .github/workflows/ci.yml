@@ -11,7 +11,7 @@ env:
 
 jobs:
   # ==========================================
-  # BUILD & PUSH IMAGE
+  # STAGE 1 : BUILD & PUSH DOCKER IMAGE
   # ==========================================
   build-image:
     runs-on: ubuntu-latest
@@ -19,7 +19,8 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -30,37 +31,77 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -f Dockerfile.ci -t $IMAGE_NAME -t $IMAGE_LATEST .
+          docker build -t $IMAGE_NAME -t $IMAGE_LATEST .
+          echo "Image built: $IMAGE_NAME"
+
+      - name: Push Docker image
+        run: |
           docker push $IMAGE_NAME
           docker push $IMAGE_LATEST
+          echo "Docker image pushed"
 
   # ==========================================
-  # UNIT + INTEGRATION TESTS via Docker Compose
+  # STAGE 2 : UNIT TESTS
   # ==========================================
-  tests:
+  unit-tests:
+    runs-on: ubuntu-latest
+    needs: build-image
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install all dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+
+  # ==========================================
+  # STAGE 3 : INTEGRATION TESTS
+  # ==========================================
+  integration-tests:
     runs-on: ubuntu-latest
     needs: build-image
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Docker Compose
-        run: sudo apt-get update && sudo apt-get install -y docker-compose
+        run: sudo apt-get update && sudo apt-get install docker-compose -y
 
-      - name: Start services & run tests
+      - name: Start services
         run: |
-          docker-compose -f docker-compose.ci.yml up --build --abort-on-container-exit
+          docker-compose -f docker-compose.ci.yml up -d
+          echo "Waiting for Postgres to be healthy..."
+          for i in {1..15}; do
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' lastmetro-db)
+            echo "Postgres health: $STATUS"
+            if [ "$STATUS" == "healthy" ]; then break; fi
+            sleep 2
+          done
 
-      - name: Shutdown services and remove volumes
-        run: docker-compose -f docker-compose.ci.yml down -v
+      - name: Run integration tests inside API container
+        run: docker-compose -f docker-compose.ci.yml exec -T api npm test
+
+      - name: Shutdown services
+        run: docker-compose -f docker-compose.ci.yml down
 
   # ==========================================
-  # SECURITY SCAN
+  # STAGE 4 : SECURITY (Trivy)
   # ==========================================
   trivy-scan:
     runs-on: ubuntu-latest
     needs: build-image
     steps:
-      - name: Run Trivy scan
+      - name: Install Trivy
         uses: aquasecurity/trivy-action@0.20.0
         with:
           scan-type: image
@@ -70,23 +111,27 @@ jobs:
           exit-code: 1
 
   # ==========================================
-  # DEPLOY STAGING
+  # STAGE 5 : DEPLOY STAGING
   # ==========================================
   deploy-staging:
     runs-on: ubuntu-latest
-    needs: [tests, trivy-scan]
+    needs: [unit-tests, integration-tests, trivy-scan]
     if: github.ref == 'refs/heads/develop'
     steps:
-      - name: Simulate deploy staging
-        run: echo "Deploying $IMAGE_NAME to staging..."
+      - name: Deploy to staging
+        run: |
+          echo "Deploying to staging with image $IMAGE_NAME"
+          echo "Configure your real deployment here"
 
   # ==========================================
-  # DEPLOY PRODUCTION
+  # STAGE 6 : DEPLOY PRODUCTION
   # ==========================================
   deploy-production:
     runs-on: ubuntu-latest
-    needs: [tests, trivy-scan]
+    needs: [unit-tests, integration-tests, trivy-scan]
     if: github.ref == 'refs/heads/main'
     steps:
-      - name: Simulate deploy production
-        run: echo "Deploying $IMAGE_NAME to production..."
+      - name: Deploy to production
+        run: |
+          echo "Deploying to production with image $IMAGE_NAME"
+          echo "Configure your real deployment here"
