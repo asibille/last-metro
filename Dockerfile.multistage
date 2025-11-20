@@ -1,0 +1,65 @@
+# ==========================================
+# STAGE 1: BUILD (Development environment)
+# ==========================================
+FROM node:18 AS builder
+
+# Metadata
+LABEL stage=builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install ALL dependencies (dev + prod)
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Run any build steps (TypeScript compilation, minification, etc.)
+# Si vous n'avez pas de build step, commentez cette ligne
+# RUN npm run build
+
+# ==========================================
+# STAGE 2: RUNTIME (Production environment)
+# ==========================================
+FROM node:18-alpine
+
+# Metadata
+LABEL maintainer="votre-email@efrei.fr"
+LABEL version="2.0"
+LABEL description="LastMetro API - Multi-stage build"
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install PRODUCTION dependencies ONLY
+RUN npm ci --only=production && \
+    npm cache clean --force
+
+# ⭐ Copy ONLY what's needed from builder stage
+# Si vous avez un dossier dist/ (TypeScript build), copiez-le
+# Sinon, copiez le code source directement
+# COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/server.js ./
+COPY --from=builder /app/db ./db
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001 && \
+    chown -R nodejs:nodejs /app
+
+USER nodejs
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))"
+
+# Si vous avez TypeScript compilé :
+# CMD ["node", "dist/server.js"]
+# Sinon :
+CMD ["node", "server.js"]
