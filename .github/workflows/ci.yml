@@ -79,6 +79,8 @@ jobs:
           done
 
       - name: Initialize database
+        env:
+          PGPASSWORD: app
         run: |
           psql -h localhost -U app -d dernier_metro_test -f ./dernier_metro.sql
 
