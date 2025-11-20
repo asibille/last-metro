@@ -162,21 +162,19 @@ jobs:
   # STAGE 4 : SECURITY (Trivy)
   # ==========================================
   trivy-scan:
-    stage: security
-    image:
-      name: aquasec/trivy:latest
-      entrypoint: [""]
+    runs-on: ubuntu-latest
+    needs: build-image
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
 
-    script:
-      - echo "🔒 Scanning image for vulnerabilities..."
-      - trivy image --severity HIGH,CRITICAL --exit-code 0 $IMAGE_NAME
-      - echo "✅ Security scan completed"
+    steps:
+      - name: Install Trivy
+        uses: aquasecurity/trivy-action@master
 
-    allow_failure: false
-
-    only:
-      - main
-      - develop
+      - name: Scan Docker image for vulnerabilities
+        run: |
+          echo "🔒 Scanning image for vulnerabilities..."
+          trivy image --severity HIGH,CRITICAL --exit-code 0 $IMAGE_NAME
+          echo "✅ Security scan completed"
 
   # ==========================================
   # STAGE 5 : DEPLOY STAGING
