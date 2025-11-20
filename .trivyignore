@@ -1,0 +1,6 @@
+# Ignorer les vulnérabilités LOW/MEDIUM dans les deps de dev (non utilisées en prod)
+CVE-2023-1234
+
+# Ignorer les vulnérabilités dans les packages qu'on ne peut pas patcher
+# (expliquez POURQUOI dans un commentaire)
+CVE-2022-9876  # Pas de fix disponible, package obsolète, on ne l'utilise pas

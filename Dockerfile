@@ -1,22 +1,44 @@
-FROM node:18-alpine
-
-# Crée le dossier de travail
+#############################
+# STAGE 1 : BUILDER
+#############################
+# Utiliser une version récente et sécurisée de Node + Alpine
+FROM node:18-alpine3.19 AS builder
 WORKDIR /app
 
-# Copie package.json et package-lock.json
+# Mettre à jour Alpine pour corriger les vulnérabilités système
+RUN apk update && apk upgrade --no-cache
+
+# Copier uniquement les fichiers package.json pour profiter du cache Docker
 COPY package*.json ./
 
-# Installe toutes les dépendances (prod + dev)
+# Installer toutes les dépendances (prod + dev)
 RUN npm ci
 
-# Copie le reste des fichiers
+# Copier le reste du projet
 COPY . .
 
-# Expose le port
-EXPOSE 3000
+# (OPTIONNEL) Build TypeScript si nécessaire
+# RUN npm run build
 
-# Définir la variable d'environnement
+#############################
+# STAGE 2 : RUNTIME
+#############################
+FROM node:18-alpine3.19 AS runtime
+WORKDIR /app
+
+# Mettre à jour Alpine pour corriger les vulnérabilités
+RUN apk update && apk upgrade --no-cache
+
+# Copier uniquement les fichiers package.json et package-lock.json
+COPY package*.json ./
+
+# Installer uniquement les dépendances de production
+RUN npm ci --only=production
+
+# Copier les fichiers construits depuis le builder
+COPY --from=builder /app/dist ./dist
+
+EXPOSE 3000
 ENV PORT=3000
 
-# Commande pour démarrer le serveur
-CMD ["node", "server.js"]
+CMD ["node", "dist/server.js"]
