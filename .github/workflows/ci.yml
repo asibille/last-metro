@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE_NAME: ghcr.io/${{ github.repository }}:${{ github.sha }}
-  IMAGE_LATEST: ghcr.io/${{ github.repository }}:latest
+  IMAGE_NAME: ghcr.io/asibille/last-metro:${{ github.sha }}
+  IMAGE_LATEST: ghcr.io/asibille/last-metro:latest
 
 jobs:
   # ==========================================
@@ -24,7 +24,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_PAT }}  # Utiliser un Personal Access Token
+          password: ${{ secrets.GHCR_PAT }}  # <- utilise ton Personal Access Token ici
 
       - name: Build Docker image
         run: |
@@ -40,17 +40,13 @@ jobs:
     needs: build-image
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 18
-
       - name: Install dependencies
         run: npm ci
-
       - name: Run unit tests
         run: npm test
-
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
@@ -65,10 +61,8 @@ jobs:
     needs: build-image
     steps:
       - uses: actions/checkout@v4
-
       - name: Install Docker Compose
         run: sudo apt-get update && sudo apt-get install docker-compose -y
-
       - name: Start services
         run: |
           docker-compose up -d
@@ -79,15 +73,13 @@ jobs:
             if [ "$STATUS" == "healthy" ]; then break; fi
             sleep 2
           done
-
       - name: Run integration tests inside API container
         run: docker-compose exec -T api npm test
-
       - name: Shutdown services
         run: docker-compose down
 
   # ==========================================
-  # STAGE 4 : SECURITY (Trivy)
+  # STAGE 4 : SECURITY SCAN (Trivy)
   # ==========================================
   trivy-scan:
     runs-on: ubuntu-latest
@@ -112,7 +104,7 @@ jobs:
       - name: Deploy to staging
         run: |
           echo "Deploying to staging with image $IMAGE_NAME"
-          echo "Configure your deployment ici"
+          echo "Configure your deployment here"
 
   # ==========================================
   # STAGE 6 : DEPLOY PRODUCTION
@@ -125,4 +117,4 @@ jobs:
       - name: Deploy to production
         run: |
           echo "Deploying to production with image $IMAGE_NAME"
-          echo "Configure your deployment ici"
+          echo "Configure your deployment here"
