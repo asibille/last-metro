@@ -96,7 +96,7 @@ jobs:
           done
 
       - name: Run integration tests inside API container
-        run: docker-compose exec -T api npm run test:integration
+        run: docker-compose exec -T api npm test
 
       - name: Shutdown services
         run: docker-compose down
