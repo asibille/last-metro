@@ -55,10 +55,11 @@ jobs:
           POSTGRES_USER: app
           POSTGRES_PASSWORD: app
         options: >-
-          --health-cmd="pg_isready -U app -d dernier_metro_test" 
-          --health-interval=5s 
-          --health-timeout=5s 
+          --health-cmd="pg_isready -U app -d dernier_metro_test"
+          --health-interval=5s
+          --health-timeout=5s
           --health-retries=10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -66,19 +67,20 @@ jobs:
         with:
           node-version: 18
 
-      - name: Wait for PostgreSQL
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Wait for PostgreSQL to be ready
         run: |
           for i in $(seq 1 30); do
-            pg_isready -h localhost -p 5432 -U app -d dernier_metro_test && break
+            pg_isready -h localhost -p 5432 -U app && break
             echo "Waiting for PostgreSQL..."
             sleep 2
           done
 
       - name: Initialize database
         run: |
-          psql -h localhost -p 5432 -U app -d dernier_metro_test -f dernier_metro.sql
-        env:
-          PGPASSWORD: app
+          psql -h localhost -U app -d dernier_metro_test -f ./dernier_metro.sql
 
       - name: Install dependencies
         run: npm ci
@@ -99,7 +101,7 @@ jobs:
           path: coverage/
 
   # ==========================================
-  # STAGE 3 : INTEGRATION TESTS
+  # STAGE 3 : INTEGRATION TESTS (inchangé)
   # ==========================================
   integration-tests:
     runs-on: ubuntu-latest
