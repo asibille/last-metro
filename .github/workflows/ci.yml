@@ -18,7 +18,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -47,7 +46,6 @@ jobs:
   unit-tests:
     runs-on: ubuntu-latest
     needs: build-image
-
     services:
       postgres:
         image: postgres:16-alpine
@@ -134,7 +132,6 @@ jobs:
   integration-tests:
     runs-on: ubuntu-latest
     needs: build-image
-
     steps:
       - uses: actions/checkout@v4
 
@@ -164,17 +161,19 @@ jobs:
   trivy-scan:
     runs-on: ubuntu-latest
     needs: build-image
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-
     steps:
-      - name: Install Trivy
-        uses: aquasecurity/trivy-action@master
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Scan Docker image for vulnerabilities
-        run: |
-          echo "🔒 Scanning image for vulnerabilities..."
-          trivy image --severity HIGH,CRITICAL --exit-code 0 $IMAGE_NAME
-          echo "✅ Security scan completed"
+      - name: Run Trivy scan on Docker image
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.IMAGE_NAME }}
+          severity: CRITICAL,HIGH
+          format: table
+          exit-code: 1
+          ignore-unfixed: false
 
   # ==========================================
   # STAGE 5 : DEPLOY STAGING
@@ -183,7 +182,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: [unit-tests, integration-tests, trivy-scan]
     if: github.ref == 'refs/heads/develop'
-
     steps:
       - name: Deploy to staging
         run: |
@@ -197,7 +195,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: [unit-tests, integration-tests, trivy-scan]
     if: github.ref == 'refs/heads/main'
-
     steps:
       - name: Deploy to production
         run: |
