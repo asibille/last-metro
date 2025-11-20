@@ -2,7 +2,7 @@ name: CI/CD - LastMetro API
 
 on:
   push:
-    branches: ["main", "develop", "12-ci/cd"]
+    branches:  ["main", "develop", "12-ci/cd", "13-trivy"]
   workflow_dispatch:
 
 env:
