@@ -41,93 +41,64 @@ jobs:
           echo "Docker image pushed"
 
   # ==========================================
-# STAGE 2 : UNIT TESTS
-# ==========================================
-unit-tests:
-  runs-on: ubuntu-latest
-  needs: build-image
-  services:
-    postgres:
-      image: postgres:16-alpine
-      ports: ["5432:5432"]
-      env:
-        POSTGRES_DB: postgres        # Base par défaut pour créer d'autres bases
-        POSTGRES_USER: app
-        POSTGRES_PASSWORD: app
-      options: >-
-        --health-cmd="pg_isready -U app"
-        --health-interval=5s
-        --health-timeout=5s
-        --health-retries=10
+  # STAGE 2 : UNIT TESTS
+  # ==========================================
+  unit-tests:
+    runs-on: ubuntu-latest
+    needs: build-image
+    services:
+      postgres:
+        image: postgres:16-alpine
+        ports: ["5432:5432"]
+        env:
+          POSTGRES_DB: dernier_metro_test
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+        options: >-
+          --health-cmd="pg_isready -U app -d dernier_metro_test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
 
-  steps:
-    - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-    - uses: actions/setup-node@v4
-      with:
-        node-version: 18
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
 
-    - name: Install PostgreSQL client
-      run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
-    - name: Wait for PostgreSQL to be ready
-      run: |
-        for i in $(seq 1 30); do
-          pg_isready -h localhost -p 5432 -U app && break
-          echo "Waiting for PostgreSQL..."
-          sleep 2
-        done
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          for i in $(seq 1 30); do
+            pg_isready -h localhost -p 5432 -U app && break
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
 
-    - name: Initialize database and tables
-      env:
-        PGPASSWORD: app
-      run: |
-        # Créer la base de test
-        psql -h localhost -U app -d postgres -c "CREATE DATABASE dernier_metro_test;"
+      - name: Initialize database
+        run: |
+          psql -h localhost -U app -d dernier_metro_test -f ./dernier_metro.sql
 
-        # Créer les tables et insérer données par défaut
-        psql -h localhost -U app -d dernier_metro_test <<'EOSQL'
-          CREATE TABLE IF NOT EXISTS metro_lines (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(50) NOT NULL UNIQUE,
-            color VARCHAR(30) NOT NULL,
-            created_at TIMESTAMP DEFAULT NOW()
-          );
+      - name: Install dependencies
+        run: npm ci
 
-          CREATE TABLE IF NOT EXISTS config (
-            key TEXT PRIMARY KEY,
-            value JSONB NOT NULL
-          );
+      - name: Run unit tests
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: dernier_metro_test
+          DB_USER: app
+          DB_PASSWORD: app
+        run: npm test
 
-          INSERT INTO metro_lines (name, color)
-          VALUES
-            ('Ligne 1', 'Bleu'),
-            ('Ligne 2', 'Rouge')
-          ON CONFLICT DO NOTHING;
-
-          INSERT INTO config (key, value)
-          VALUES
-            ('metro.defaults', '{"line": "M1", "headwayMin": 5, "timezone": "Europe/Paris"}')
-          ON CONFLICT DO NOTHING;
-        EOSQL
-
-    - name: Install dependencies
-      run: npm ci
-
-    - name: Run unit tests
-      env:
-        DB_HOST: localhost
-        DB_PORT: 5432
-        DB_NAME: dernier_metro_test
-        DB_USER: app
-        DB_PASSWORD: app
-      run: npm test
-
-    - name: Upload coverage report
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage
-        path: coverage/
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
 
   # ==========================================
   # STAGE 3 : INTEGRATION TESTS (inchangé)
