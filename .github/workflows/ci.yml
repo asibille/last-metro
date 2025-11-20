@@ -18,6 +18,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -46,6 +47,7 @@ jobs:
   unit-tests:
     runs-on: ubuntu-latest
     needs: build-image
+
     services:
       postgres:
         image: postgres:16-alpine
@@ -82,10 +84,7 @@ jobs:
         env:
           PGPASSWORD: app
         run: |
-          # Créer la base de test
           psql -h localhost -U app -d postgres -c "CREATE DATABASE dernier_metro_test;"
-
-          # Créer les tables et insérer données par défaut
           psql -h localhost -U app -d dernier_metro_test <<'EOSQL'
             CREATE TABLE IF NOT EXISTS metro_lines (
               id SERIAL PRIMARY KEY,
@@ -135,6 +134,7 @@ jobs:
   integration-tests:
     runs-on: ubuntu-latest
     needs: build-image
+
     steps:
       - uses: actions/checkout@v4
 
@@ -161,26 +161,17 @@ jobs:
   # ==========================================
   # STAGE 4 : SECURITY (Trivy)
   # ==========================================
-# ==========================================
-# STAGE 3 : SECURITY
-# ==========================================
+  trivy-scan:
+    runs-on: ubuntu-latest
+    needs: build-image
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
 
-trivy-scan:
-  stage: security
-  image:
-    name: aquasec/trivy:latest
-    entrypoint: [""]
+    steps:
+      - name: Install Trivy
+        uses: aquasecurity/trivy-action@master
 
-  script:
-    - echo "🔒 Scanning image for vulnerabilities..."
-    - trivy image --severity HIGH,CRITICAL --exit-code 0 $IMAGE_NAME
-    - echo "✅ Security scan completed"
-
-  allow_failure: false  # Pipeline échoue si vulnérabilités CRITICAL trouvées
-
-  only:
-    - main
-    - develop
+      - name: Run Trivy scan
+        run: trivy image --severity HIGH,CRITICAL --exit-code 1 $IMAGE_NAME
 
   # ==========================================
   # STAGE 5 : DEPLOY STAGING
@@ -189,6 +180,7 @@ trivy-scan:
     runs-on: ubuntu-latest
     needs: [unit-tests, integration-tests, trivy-scan]
     if: github.ref == 'refs/heads/develop'
+
     steps:
       - name: Deploy to staging
         run: |
@@ -202,6 +194,7 @@ trivy-scan:
     runs-on: ubuntu-latest
     needs: [unit-tests, integration-tests, trivy-scan]
     if: github.ref == 'refs/heads/main'
+
     steps:
       - name: Deploy to production
         run: |
