@@ -8,20 +8,19 @@ services:
       POSTGRES_DB: dernier_metro
       POSTGRES_USER: app
       POSTGRES_PASSWORD: app
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U app -d dernier_metro"]
       interval: 5s
       timeout: 3s
       retries: 10
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata_test:/var/lib/postgresql/data
       - ./db/02_metro_lines.sql:/docker-entrypoint-initdb.d/02_metro_lines.sql:ro
 
   api:
     build:
       context: .
+      dockerfile: Dockerfile.ci
     container_name: lastmetro-api
     environment:
       DB_HOST: postgres
@@ -33,7 +32,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: sh -c "sleep 5 && npm test"
 
 volumes:
-  pgdata:
+  pgdata_test:

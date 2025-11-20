@@ -1,22 +1,19 @@
+# Dockerfile.ci
 FROM node:18-alpine
 
-# Crée le dossier de travail
 WORKDIR /app
 
-# Copie package.json et package-lock.json
+# Copier package.json et package-lock.json
 COPY package*.json ./
 
-# Installe toutes les dépendances (prod + dev)
+# Installer toutes les dépendances (dev inclues)
 RUN npm ci
 
-# Copie le reste des fichiers
+# Copier le reste du code
 COPY . .
 
-# Expose le port
 EXPOSE 3000
-
-# Définir la variable d'environnement
 ENV PORT=3000
 
-# Commande pour démarrer le serveur
-CMD ["node", "server.js"]
+# Commande par défaut : attendre la DB et lancer les tests
+CMD sh -c "until pg_isready -h $DB_HOST -p $DB_PORT -U $DB_USER; do echo 'Waiting for Postgres...'; sleep 2; done; npm test"
