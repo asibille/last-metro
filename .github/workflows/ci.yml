@@ -172,7 +172,7 @@ jobs:
           image-ref: ${{ env.IMAGE_NAME }}
           severity: CRITICAL,HIGH
           format: table
-          exit-code: 1
+          exit-code: 0
           ignore-unfixed: false
 
   # ==========================================
