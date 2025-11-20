@@ -79,7 +79,7 @@ jobs:
 
       - name: Run unit tests
         env:
-          DB_HOST: localhost
+          DB_HOST: postgres
           DB_PORT: 5432
           DB_NAME: dernier_metro_test
           DB_USER: app
