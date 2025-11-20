@@ -129,7 +129,6 @@ unit-tests:
         name: coverage
         path: coverage/
 
-
   # ==========================================
   # STAGE 3 : INTEGRATION TESTS (inchangé)
   # ==========================================
